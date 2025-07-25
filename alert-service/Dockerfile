@@ -40,4 +40,4 @@ COPY --from=build /app/alert-service/dist ./dist
 
 EXPOSE 4001
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/src/index.js"]

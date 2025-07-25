@@ -40,4 +40,4 @@ COPY --from=build /app/analysis-service/dist ./dist
 
 EXPOSE 4002
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/src/index.js"]

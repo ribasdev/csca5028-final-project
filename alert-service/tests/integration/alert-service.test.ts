@@ -1,7 +1,5 @@
-// Mock data stores for integration tests
 const mockRedisData = new Map<string, any>();
 
-// Mock Redis
 jest.mock('ioredis', () => {
   return jest.fn().mockImplementation(() => ({
     del: jest.fn().mockImplementation((key: string) => {
@@ -44,10 +42,8 @@ describe('Alert Service Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    // Clear mock data
     mockRedisData.clear();
     
-    // Reset all mocks
     jest.clearAllMocks();
   });
 
@@ -64,17 +60,14 @@ describe('Alert Service Integration Tests', () => {
         resolved: false
       };
 
-      // Add alert to queue
       await redis.lpush('alert_queue', JSON.stringify({
         alertId: 'test-alert-1',
         alert: alert
       }));
 
-      // Verify queue has the alert
       const queueLength = await redis.llen('alert_queue');
       expect(queueLength).toBe(1);
 
-      // Process the alert (simulate alert service processing)
       const job = await redis.brpop('alert_queue', 1);
       expect(job).not.toBeNull();
       

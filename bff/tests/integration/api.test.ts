@@ -1,8 +1,6 @@
-﻿// Mock data stores for integration tests
-const mockRedisData = new Map<string, any>();
+﻿const mockRedisData = new Map<string, any>();
 const mockOpenSearchData = new Map<string, any>();
 
-// Mock Redis
 jest.mock('ioredis', () => {
   return jest.fn().mockImplementation(() => ({
     del: jest.fn().mockImplementation((key: string) => {
@@ -32,7 +30,6 @@ jest.mock('ioredis', () => {
   }));
 });
 
-// Mock OpenSearch
 jest.mock('@opensearch-project/opensearch', () => {
   return {
     Client: jest.fn().mockImplementation(() => ({
