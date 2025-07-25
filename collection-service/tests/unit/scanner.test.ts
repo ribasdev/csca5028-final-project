@@ -158,17 +158,17 @@ describe('CertificateScanner Unit Tests', () => {
     it('should handle invalid domain gracefully', async () => {
       const result = await scanner.scanDomain('invalid.domain.that.does.not.exist');
       expect(result).toBeNull();
-    });
+    }, 10000);
 
     it('should handle connection timeout gracefully', async () => {
       const result = await scanner.scanDomain('10.255.255.1');
       expect(result).toBeNull();
-    });
+    }, 15000);
 
     it('should handle non-HTTPS domains gracefully', async () => {
       const result = await scanner.scanDomain('http-only-site.example');
       expect(result).toBeNull();
-    });
+    }, 10000);
   });
 
   describe('Certificate Processing', () => {

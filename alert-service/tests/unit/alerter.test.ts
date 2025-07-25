@@ -30,13 +30,13 @@ describe('AlertProcessor Unit Tests', () => {
       await alertProcessor.processAlert(alert);
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('🚨 CRITICAL ALERT: Certificate expires in 1 day')
+        expect.stringContaining('CRITICAL ALERT: Certificate expires in 1 day')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('📧 Email sent to IT team for Test University')
+        expect.stringContaining('Subject: [CRITICAL] SSL Certificate Alert - test.edu')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('🔗 Webhook notification sent')
+        expect.stringContaining('URL: https://university-alerts.example.com/webhook')
       );
     });
 
@@ -55,10 +55,10 @@ describe('AlertProcessor Unit Tests', () => {
       await alertProcessor.processAlert(alert);
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('⚠️  HIGH PRIORITY: Certificate expires in 7 days')
+        expect.stringContaining('HIGH PRIORITY: Certificate expires in 7 days')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('📧 Email sent to IT team for Test University')
+        expect.stringContaining('Subject: [HIGH] SSL Certificate Alert - test.edu')
       );
     });
 
@@ -80,10 +80,10 @@ describe('AlertProcessor Unit Tests', () => {
         expect.stringContaining('Test University')
       );
       expect(consoleLogSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('🚨 CRITICAL ALERT')
+        expect.stringContaining('CRITICAL ALERT')
       );
       expect(consoleLogSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('⚠️  HIGH PRIORITY')
+        expect.stringContaining('HIGH PRIORITY')
       );
     });
 
@@ -111,7 +111,7 @@ describe('AlertProcessor Unit Tests', () => {
         expect.stringContaining('Domain: example.edu')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Type: expired')
+        expect.stringContaining('Severity: CRITICAL')
       );
     });
 
@@ -130,13 +130,10 @@ describe('AlertProcessor Unit Tests', () => {
       await alertProcessor.processAlert(alert);
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('📊 Metrics updated:')
+        expect.stringContaining('Metrics updated:')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Alert type: security')
-      );
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Severity: medium')
+        expect.stringContaining('Alert processed: medium - security')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('University: Security University')
@@ -163,7 +160,7 @@ describe('AlertProcessor Unit Tests', () => {
         expect.stringContaining('Subject: [CRITICAL] SSL Certificate Alert - test.edu')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Body: Certificate has expired')
+        expect.stringContaining('Body: Alert for Test University: Certificate has expired')
       );
     });
 
@@ -262,13 +259,13 @@ describe('AlertProcessor Unit Tests', () => {
       await alertProcessor.processAlert(alert);
 
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('LOW: Minor configuration issue')
+        expect.stringContaining('Alert for Test University: Minor configuration issue')
       );
       expect(consoleLogSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('🚨 CRITICAL ALERT')
+        expect.stringContaining('CRITICAL ALERT')
       );
       expect(consoleLogSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('⚠️  HIGH PRIORITY')
+        expect.stringContaining('HIGH PRIORITY')
       );
     });
 

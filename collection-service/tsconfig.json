@@ -3,7 +3,7 @@
   "compilerOptions": {
     "composite": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "./",
     "baseUrl": "./",
     "types": ["node", "jest"],
     "typeRoots": ["./node_modules/@types", "../node_modules/@types"],
@@ -15,5 +15,5 @@
   "references": [
     { "path": "../shared" }
   ],
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "tests/**/*"]
 }

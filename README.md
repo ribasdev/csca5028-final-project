@@ -35,10 +35,9 @@ The system consists of the following services:
 
 This project uses GitHub Actions for continuous integration and deployment:
 
-- **✅ Automated Testing**: Runs on every push and pull request
-- **🚀 Frontend Deployment**: Automatically deploys to GitHub Pages on main branch
-- **🔧 Backend Deployment**: Automatically deploys services to Heroku on main branch
-- **📦 Dependency Updates**: Weekly automated dependency updates
+- **Automated Testing**: Runs on every push and pull request
+- **Frontend Deployment**: Automatically deploys to GitHub Pages on main branch
+- **Backend Deployment**: Automatically deploys services to Heroku on main branch
 
 ## Quick Start
 
@@ -169,10 +168,6 @@ cd alert-service && npm run build
 ### Running Tests
 
 ```bash
-# Run all tests
-./run-tests.sh    # Linux/Mac
-./run-tests.bat   # Windows
-
 # Run tests for specific service
 cd alert-service && npm test
 ```
@@ -243,30 +238,30 @@ docker-compose logs -f <service-name>
 ### University Document
 ```typescript
 {
-  domain: string,              // Primary university domain (e.g., "colorado.edu")
-  name: string,               // University display name
-  registrationDate: string,   // ISO date when university was registered
-  isActive: boolean          // Whether university is actively monitored
+  domain: string,              
+  name: string,               
+  registrationDate: string,  
+  isActive: boolean          
 }
 ```
 
 ### Certificate Document
 ```typescript
 {
-  university: string,         // University name
-  domain: string,            // Certificate domain
-  state: string,            // Certificate validity state
-  issuer: string,           // Certificate authority
-  subject: string,          // Certificate subject
-  validFrom: string,        // Certificate valid from date
-  validTo: string,          // Certificate expiration date
-  daysUntilExpiry: number,  // Days until expiration
-  serialNumber: string,     // Certificate serial number
-  signatureAlgorithm: string, // Signature algorithm used
-  keySize: number,          // Key size in bits
-  securityGrade: 'A' | 'B' | 'C' | 'D' | 'F', // Security grade
-  status: 'valid' | 'expiring' | 'expired' | 'invalid', // Status
-  scanTimestamp: string     // When certificate was scanned
+  university: string,         
+  domain: string,            
+  state: string,            
+  issuer: string,           
+  subject: string,          
+  validFrom: string,        
+  validTo: string,          
+  daysUntilExpiry: number,  
+  serialNumber: string,     
+  signatureAlgorithm: string, 
+  keySize: number,          /
+  securityGrade: 'A' | 'B' | 'C' | 'D' | 'F', 
+  status: 'valid' | 'expiring' | 'expired' | 'invalid', 
+  scanTimestamp: string     
 }
 ```
 
@@ -360,101 +355,6 @@ npm run test:integration
 # Run tests in watch mode
 npm run test:watch
 ```
-
-### Test Categories
-
-#### 🔧 Unit Tests
-- **Frontend Components**: React component behavior, props, state management
-- **Service Logic**: Business logic, data transformations, calculations
-- **Utilities**: Helper functions, validators, formatters
-- **Security Grading**: Certificate analysis algorithms
-
-#### 🔗 Integration Tests
-- **API Endpoints**: HTTP request/response handling
-- **Database Operations**: OpenSearch CRUD operations
-- **Queue Processing**: Redis message queue interactions
-- **Service Communication**: Inter-service data flow
-
-#### 📱 Frontend Testing Features
-- **User Interactions**: Form submissions, button clicks, navigation
-- **API Mocking**: Fetch API mocking with Jest
-- **Error Handling**: Network errors, validation errors
-- **Accessibility**: Screen reader compatibility, keyboard navigation
-
-#### 🏗️ Backend Testing Features
-- **Redis Integration**: Queue operations, connection handling
-- **OpenSearch Integration**: Index management, search operations
-- **Error Scenarios**: Network failures, malformed data
-- **Performance**: Bulk operations, concurrent processing
-
-### Test Dependencies
-
-#### Frontend
-- **@testing-library/react**: Component testing utilities
-- **@testing-library/jest-dom**: Custom Jest matchers
-- **@testing-library/user-event**: User interaction simulation
-- **Jest**: Test runner and assertion library
-
-#### Backend
-- **Jest**: Test runner and assertion library
-- **@types/jest**: TypeScript definitions for Jest
-- **Supertest**: HTTP assertion library (for API tests)
-- **Redis/OpenSearch**: Real database connections for integration tests
-
-### Test Configuration
-
-#### Jest Configuration (package.json)
-```json
-{
-  "scripts": {
-    "test": "jest",
-    "test:unit": "jest --testPathPattern=unit",
-    "test:integration": "jest --testPathPattern=integration",
-    "test:watch": "jest --watch"
-  },
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "node",
-    "collectCoverageFrom": [
-      "src/**/*.{ts,tsx}",
-      "!src/**/*.d.ts"
-    ]
-  }
-}
-```
-
-#### TypeScript Test Configuration
-```json
-{
-  "compilerOptions": {
-    "types": ["node", "jest"],
-    "typeRoots": ["./node_modules/@types", "../node_modules/@types"]
-  }
-}
-```
-
-### Testing Best Practices
-
-#### ✅ Unit Test Guidelines
-- Test single units of functionality in isolation
-- Mock external dependencies (APIs, databases)
-- Test both success and error scenarios
-- Verify edge cases and boundary conditions
-- Maintain high code coverage (>80%)
-
-#### ✅ Integration Test Guidelines
-- Test actual service interactions
-- Use test databases (separate from development)
-- Clean up test data after each test
-- Test realistic data volumes
-- Verify end-to-end workflows
-
-#### ✅ Frontend Test Guidelines
-- Test user workflows, not implementation details
-- Use semantic queries (getByRole, getByLabelText)
-- Test accessibility and keyboard navigation
-- Mock API calls consistently
-- Test responsive behavior
 
 ### Continuous Integration
 

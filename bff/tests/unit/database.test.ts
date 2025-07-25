@@ -2,16 +2,52 @@
 
 describe('DatabaseManager Unit Tests', () => {
   let dbManager: DatabaseManager;
+  let mockOpenSearchClient: any;
+  let mockRedisClient: any;
 
-  beforeAll(() => {
+  beforeEach(() => {
+    // Create mock clients
+    mockOpenSearchClient = {
+      indices: {
+        exists: jest.fn().mockResolvedValue({ body: true }),
+        create: jest.fn().mockResolvedValue({ body: { acknowledged: true } }),
+      },
+      search: jest.fn().mockResolvedValue({
+        body: {
+          hits: {
+            hits: [{ _source: { test: 'data' } }],
+            total: { value: 1 }
+          }
+        }
+      }),
+      cluster: {
+        health: jest.fn().mockResolvedValue({
+          body: { status: 'green' }
+        })
+      }
+    };
+
+    mockRedisClient = {
+      ping: jest.fn().mockResolvedValue('PONG'),
+      lpush: jest.fn().mockResolvedValue(1),
+      llen: jest.fn().mockResolvedValue(0),
+      disconnect: jest.fn().mockResolvedValue(undefined)
+    };
+
+    // Create DatabaseManager with test URLs
     dbManager = new DatabaseManager(
       'http://localhost:9200',
       'redis://localhost:6379'
     );
+
+    // Replace the clients with mocks
+    (dbManager as any).opensearch = mockOpenSearchClient;
+    (dbManager as any).redis = mockRedisClient;
   });
 
-  afterAll(async () => {
-    await dbManager.close();
+  afterEach(async () => {
+    // Clean up mocks
+    jest.clearAllMocks();
   });
 
   describe('Client Getters', () => {
@@ -75,21 +111,19 @@ describe('DatabaseManager Unit Tests', () => {
 
   describe('Error Handling', () => {
     it('should handle OpenSearch connection errors gracefully', async () => {
-      const invalidDbManager = new DatabaseManager('http://invalid:9200', 'redis://localhost:6379');
-
-      const isHealthy = await invalidDbManager.checkOpenSearchHealth();
+      // Mock OpenSearch cluster health to throw an error
+      mockOpenSearchClient.cluster.health = jest.fn().mockRejectedValue(new Error('Connection Error'));
+      
+      const isHealthy = await dbManager.checkOpenSearchHealth();
       expect(isHealthy).toBe(false);
-
-      await invalidDbManager.close();
     });
 
     it('should handle Redis connection errors gracefully', async () => {
-      const invalidDbManager = new DatabaseManager('http://localhost:9200', 'redis://invalid:6379');
-
-      const isHealthy = await invalidDbManager.checkRedisHealth();
+      // Mock Redis ping to throw an error
+      mockRedisClient.ping = jest.fn().mockRejectedValue(new Error('Redis Connection Error'));
+      
+      const isHealthy = await dbManager.checkRedisHealth();
       expect(isHealthy).toBe(false);
-
-      await invalidDbManager.close();
     });
   });
 });

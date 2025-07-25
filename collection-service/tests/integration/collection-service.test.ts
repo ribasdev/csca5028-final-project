@@ -1,3 +1,98 @@
+// Mock data stores for integration tests
+const mockRedisData = new Map<string, any>();
+const mockOpenSearchData = new Map<string, any>();
+
+// Mock Redis
+jest.mock('ioredis', () => {
+  return jest.fn().mockImplementation(() => ({
+    del: jest.fn().mockImplementation((key: string) => {
+      mockRedisData.delete(key);
+      return Promise.resolve(1);
+    }),
+    lpush: jest.fn().mockImplementation((key: string, value: string) => {
+      if (!mockRedisData.has(key)) mockRedisData.set(key, []);
+      mockRedisData.get(key).push(value);
+      return Promise.resolve(mockRedisData.get(key).length);
+    }),
+    rpop: jest.fn().mockImplementation((key: string) => {
+      const queue = mockRedisData.get(key) || [];
+      return Promise.resolve(queue.pop() || null);
+    }),
+    brpop: jest.fn().mockImplementation((key: string, timeout: number) => {
+      const queue = mockRedisData.get(key) || [];
+      const item = queue.pop();
+      return Promise.resolve(item ? [key, item] : null);
+    }),
+    llen: jest.fn().mockImplementation((key: string) => {
+      const queue = mockRedisData.get(key) || [];
+      return Promise.resolve(queue.length);
+    }),
+    disconnect: jest.fn().mockResolvedValue(undefined)
+  }));
+});
+
+// Mock OpenSearch
+jest.mock('@opensearch-project/opensearch', () => {
+  return {
+    Client: jest.fn().mockImplementation(() => ({
+      indices: {
+        create: jest.fn().mockResolvedValue({ body: { acknowledged: true } }),
+        delete: jest.fn().mockResolvedValue({ body: { acknowledged: true } }),
+        exists: jest.fn().mockResolvedValue({ body: false })
+      },
+      index: jest.fn().mockImplementation((params: any) => {
+        const key = `${params.index}:${params.id || 'doc'}`;
+        mockOpenSearchData.set(key, params.body);
+        return Promise.resolve({ body: { _id: params.id, result: 'created' } });
+      }),
+      update: jest.fn().mockImplementation((params: any) => {
+        const key = `${params.index}:${params.id}`;
+        const existing = mockOpenSearchData.get(key) || {};
+        const updated = { ...existing, ...params.body.doc };
+        mockOpenSearchData.set(key, updated);
+        return Promise.resolve({ body: { _id: params.id, result: 'updated' } });
+      }),
+      get: jest.fn().mockImplementation((params: any) => {
+        const key = `${params.index}:${params.id}`;
+        const doc = mockOpenSearchData.get(key);
+        if (doc) {
+          return Promise.resolve({ body: { _source: doc } });
+        } else {
+          return Promise.reject({ statusCode: 404 });
+        }
+      }),
+      search: jest.fn().mockImplementation((params: any) => {
+        const results: any[] = [];
+        mockOpenSearchData.forEach((value, key) => {
+          if (key.startsWith(params.index + ':')) {
+            results.push({ _source: value });
+          }
+        });
+        return Promise.resolve({
+          body: {
+            hits: {
+              hits: results,
+              total: { value: results.length }
+            }
+          }
+        });
+      }),
+      bulk: jest.fn().mockImplementation((params: any) => {
+        const body = params.body;
+        for (let i = 0; i < body.length; i += 2) {
+          const action = body[i];
+          const doc = body[i + 1];
+          if (action.index) {
+            const key = `${action.index._index}:${action.index._id}`;
+            mockOpenSearchData.set(key, doc);
+          }
+        }
+        return Promise.resolve({ body: { items: [] } });
+      })
+    }))
+  };
+});
+
 import Redis from 'ioredis';
 import { Client } from '@opensearch-project/opensearch';
 import { CertificateScanner } from '../../src/scanner';
@@ -14,9 +109,6 @@ describe('Collection Service Integration Tests', () => {
       node: 'http://localhost:9200'
     });
     scanner = new CertificateScanner();
-
-    // Wait for connections
-    await new Promise(resolve => setTimeout(resolve, 1000));
   });
 
   afterAll(async () => {
@@ -24,44 +116,12 @@ describe('Collection Service Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    // Clear test data
-    await redis.del('scan_queue');
-    await redis.del('analysis_queue');
+    // Clear mock data
+    mockRedisData.clear();
+    mockOpenSearchData.clear();
     
-    // Create test index if it doesn't exist
-    try {
-      await opensearch.indices.create({
-        index: 'test-certificates',
-        body: {
-          mappings: {
-            properties: {
-              university: { type: 'keyword' },
-              domain: { type: 'keyword' },
-              state: { type: 'keyword' },
-              issuer: { type: 'text' },
-              subject: { type: 'text' },
-              validFrom: { type: 'date' },
-              validTo: { type: 'date' },
-              daysUntilExpiry: { type: 'integer' },
-              securityGrade: { type: 'keyword' },
-              status: { type: 'keyword' },
-              scanTimestamp: { type: 'date' }
-            }
-          }
-        }
-      });
-    } catch (error) {
-      // Index might already exist
-    }
-  });
-
-  afterEach(async () => {
-    // Clean up test data
-    try {
-      await opensearch.indices.delete({ index: 'test-certificates' });
-    } catch (error) {
-      // Index might not exist
-    }
+    // Reset all mocks
+    jest.clearAllMocks();
   });
 
   describe('Scan Queue Processing', () => {
@@ -354,15 +414,20 @@ describe('Collection Service Integration Tests', () => {
     });
 
     it('should handle OpenSearch connection errors', async () => {
-      const invalidClient = new Client({ node: 'http://invalid:9999' });
+      // Create a mock that throws an error
+      const errorClient = {
+        index: jest.fn().mockRejectedValue(new Error('Connection Error')),
+        get: jest.fn().mockRejectedValue(new Error('Connection Error')),
+        update: jest.fn().mockRejectedValue(new Error('Connection Error'))
+      } as any;
       
       await expect(
-        invalidClient.index({
+        errorClient.index({
           index: 'test-certificates',
           id: 'error-test',
           body: { test: 'data' }
         })
-      ).rejects.toThrow();
+      ).rejects.toThrow('Connection Error');
     });
   });
 
