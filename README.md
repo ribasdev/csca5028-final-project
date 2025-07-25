@@ -30,6 +30,10 @@ A comprehensive microservices-based system for monitoring SSL certificates acros
 ![Certificate Management](print3.png)
 *Detailed certificate information and management interface*
 
+### Certificate Details View
+![Certificate Details](print4.png)
+*Comprehensive certificate details showing security grades, validity periods, and technical information*
+
 ## Architecture
 
 ![System Architecture](project-architecture.drawio.png)
