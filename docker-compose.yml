@@ -1,0 +1,104 @@
+services:
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:4000
+    depends_on:
+      - bff
+
+  # BFF/API Service
+  bff:
+    build:
+      context: .
+      dockerfile: bff/Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OPENSEARCH_URL=http://opensearch:9200
+    depends_on:
+      - redis
+      - opensearch
+
+  # Collection Service
+  collection-service:
+    build:
+      context: .
+      dockerfile: collection-service/Dockerfile
+    ports:
+      - "4003:4003"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OPENSEARCH_URL=http://opensearch:9200
+    depends_on:
+      - redis
+      - opensearch
+
+  # Analysis Service
+  analysis-service:
+    build:
+      context: .
+      dockerfile: analysis-service/Dockerfile
+    ports:
+      - "4002:4002"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OPENSEARCH_URL=http://opensearch:9200
+    depends_on:
+      - redis
+      - opensearch
+
+  # Alert Service
+  alert-service:
+    build:
+      context: .
+      dockerfile: alert-service/Dockerfile
+    ports:
+      - "4001:4001"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OPENSEARCH_URL=http://opensearch:9200
+    depends_on:
+      - redis
+      - opensearch
+
+  # Redis for message queues
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # OpenSearch for database
+  opensearch:
+    image: opensearchproject/opensearch:2.11.1
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=admin123!
+      - DISABLE_SECURITY_PLUGIN=true
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+
+  # OpenSearch Dashboard
+  opensearch-dashboard:
+    image: opensearchproject/opensearch-dashboards:2.11.1
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch:9200
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    ports:
+      - "5601:5601"
+    depends_on:
+      - opensearch
+
+volumes:
+  redis_data:
+  opensearch_data:

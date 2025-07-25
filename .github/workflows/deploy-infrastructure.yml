@@ -1,0 +1,60 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infrastructure/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-infrastructure:
+    name: Deploy Infrastructure Containers
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    strategy:
+      matrix:
+        include:
+          - name: "Combined Infrastructure"
+            app: "csca5028-infrastructure"
+            path: "infrastructure/combined"
+          - name: "OpenSearch"
+            app: "csca5028-opensearch"
+            path: "infrastructure/opensearch"
+          - name: "Redis"
+            app: "csca5028-redis"
+            path: "infrastructure/redis"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy ${{ matrix.name }} to Heroku
+      uses: akhileshns/heroku-deploy@v3.13.15
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: ${{ matrix.app }}
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+        appdir: ${{ matrix.path }}
+        usedocker: true
+        stack: "container"
+        
+    - name: Wait for deployment
+      run: |
+        echo "Waiting for ${{ matrix.app }} to be ready..."
+        sleep 30
+        
+        # Health check
+        for i in {1..10}; do
+          if curl -f https://${{ matrix.app }}.herokuapp.com/health 2>/dev/null; then
+            echo "${{ matrix.app }} is healthy!"
+            break
+          elif curl -f https://${{ matrix.app }}.herokuapp.com/_cluster/health 2>/dev/null; then
+            echo "${{ matrix.app }} (OpenSearch) is healthy!"
+            break
+          else
+            echo "Attempt $i: ${{ matrix.app }} not ready yet..."
+            sleep 10
+          fi
+        done

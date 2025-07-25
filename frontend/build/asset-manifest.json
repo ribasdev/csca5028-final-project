@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/csca5028-final-project/static/css/main.228b4423.css",
+    "main.js": "/csca5028-final-project/static/js/main.f05a6689.js",
+    "index.html": "/csca5028-final-project/index.html",
+    "main.228b4423.css.map": "/csca5028-final-project/static/css/main.228b4423.css.map",
+    "main.f05a6689.js.map": "/csca5028-final-project/static/js/main.f05a6689.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.228b4423.css",
+    "static/js/main.f05a6689.js"
+  ]
+}

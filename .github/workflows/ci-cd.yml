@@ -1,0 +1,369 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      opensearch:
+        image: opensearchproject/opensearch:2.11.1
+        ports:
+          - 9200:9200
+        env:
+          discovery.type: single-node
+          OPENSEARCH_INITIAL_ADMIN_PASSWORD: admin
+          DISABLE_SECURITY_PLUGIN: true
+        options: >-
+          --health-cmd "curl -f http://localhost:9200/_cluster/health"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install root dependencies
+      run: npm ci
+
+    - name: Install shared dependencies
+      run: |
+        cd shared
+        npm ci
+
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Install BFF dependencies
+      run: |
+        cd bff
+        npm ci
+
+    - name: Install alert service dependencies
+      run: |
+        cd alert-service
+        npm ci
+
+    - name: Install analysis service dependencies
+      run: |
+        cd analysis-service
+        npm ci
+
+    - name: Install collection service dependencies
+      run: |
+        cd collection-service
+        npm ci
+
+    - name: Build shared module
+      run: |
+        cd shared
+        npm run build
+
+    - name: Build services
+      run: |
+        cd bff && npm run build
+        cd ../alert-service && npm run build
+        cd ../analysis-service && npm run build
+        cd ../collection-service && npm run build
+
+    - name: Run unit tests
+      run: |
+        cd bff && npm run test:unit
+        cd ../alert-service && npm run test:unit
+        cd ../analysis-service && npm run test:unit
+        cd ../collection-service && npm run test:unit
+
+    - name: Wait for services to be ready
+      run: |
+        timeout 60 bash -c 'until curl -f http://localhost:9200/_cluster/health; do sleep 2; done'
+        timeout 30 bash -c 'until redis-cli -h localhost ping; do sleep 1; done'
+
+    - name: Run integration tests
+      run: |
+        cd bff && npm run test:integration
+        cd ../alert-service && npm run test:integration
+      env:
+        OPENSEARCH_URL: http://localhost:9200
+        REDIS_URL: redis://localhost:6379
+
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+
+  deploy-frontend:
+    name: Deploy Frontend to GitHub Pages
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install shared dependencies
+      run: |
+        cd shared
+        npm ci
+        npm run build
+
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Build frontend for production
+      run: |
+        cd frontend
+        npm run build
+      env:
+        CI: false
+        REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'https://csca5028-bff.herokuapp.com' }}
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: frontend/build
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+
+  deploy-bff:
+    name: Deploy BFF to Heroku
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install shared dependencies
+      run: |
+        cd shared
+        npm ci
+        npm run build
+
+    - name: Prepare BFF deployment
+      run: |
+        # Copy shared build to BFF
+        cp -r shared/dist bff/shared-dist
+        cp shared/package.json bff/shared-package.json
+
+    - name: Setup Heroku CLI
+      uses: akhileshns/heroku-deploy@v3.13.15
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: "csca5028-bff"
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+        appdir: "bff"
+        procfile: "web: npm start"
+        buildpack: "heroku/nodejs"
+        usedocker: false
+        
+    - name: Configure Heroku Environment
+      run: |
+        # Install Heroku CLI
+        curl https://cli-assets.heroku.com/install.sh | sh
+        
+        # Login to Heroku
+        echo "${{ secrets.HEROKU_API_KEY }}" | heroku auth:token
+        
+        # Set environment variables
+        heroku config:set NODE_ENV=production -a csca5028-bff
+        
+        # Use free Docker infrastructure or external services
+        OPENSEARCH_URL="${{ secrets.OPENSEARCH_URL || 'https://csca5028-infrastructure.herokuapp.com' }}"
+        REDIS_URL="${{ secrets.REDIS_URL || 'redis://csca5028-infrastructure.herokuapp.com:6379' }}"
+        
+        heroku config:set OPENSEARCH_URL="$OPENSEARCH_URL" -a csca5028-bff
+        heroku config:set REDIS_URL="$REDIS_URL" -a csca5028-bff
+        
+        # Set service URLs
+        heroku config:set ALERT_SERVICE_URL="https://csca5028-alert-service.herokuapp.com" -a csca5028-bff
+        heroku config:set ANALYSIS_SERVICE_URL="https://csca5028-analysis-service.herokuapp.com" -a csca5028-bff
+        heroku config:set COLLECTION_SERVICE_URL="https://csca5028-collection-service.herokuapp.com" -a csca5028-bff
+
+  deploy-alert-service:
+    name: Deploy Alert Service to Heroku
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Deploy Alert Service to Heroku
+      uses: akhileshns/heroku-deploy@v3.13.15
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: "csca5028-alert-service"
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+        appdir: "alert-service"
+        procfile: "web: npm start"
+        buildpack: "heroku/nodejs"
+        
+    - name: Configure Alert Service Environment
+      run: |
+        # Install Heroku CLI
+        curl https://cli-assets.heroku.com/install.sh | sh
+        
+        # Login to Heroku
+        echo "${{ secrets.HEROKU_API_KEY }}" | heroku auth:token
+        
+        # Set environment variables
+        heroku config:set NODE_ENV=production -a csca5028-alert-service
+        
+        # Use free Docker infrastructure or external services
+        OPENSEARCH_URL="${{ secrets.OPENSEARCH_URL || 'https://csca5028-infrastructure.herokuapp.com' }}"
+        REDIS_URL="${{ secrets.REDIS_URL || 'redis://csca5028-infrastructure.herokuapp.com:6379' }}"
+        
+        heroku config:set OPENSEARCH_URL="$OPENSEARCH_URL" -a csca5028-alert-service
+        heroku config:set REDIS_URL="$REDIS_URL" -a csca5028-alert-service
+        heroku config:set BFF_URL="https://csca5028-bff.herokuapp.com" -a csca5028-alert-service
+
+  deploy-analysis-service:
+    name: Deploy Analysis Service to Heroku
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Deploy Analysis Service to Heroku
+      uses: akhileshns/heroku-deploy@v3.13.15
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: "csca5028-analysis-service"
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+        appdir: "analysis-service"
+        procfile: "web: npm start"
+        buildpack: "heroku/nodejs"
+        
+    - name: Configure Analysis Service Environment
+      run: |
+        # Install Heroku CLI
+        curl https://cli-assets.heroku.com/install.sh | sh
+        
+        # Login to Heroku
+        echo "${{ secrets.HEROKU_API_KEY }}" | heroku auth:token
+        
+        # Set environment variables
+        heroku config:set NODE_ENV=production -a csca5028-analysis-service
+        
+        # Use free Docker infrastructure or external services
+        OPENSEARCH_URL="${{ secrets.OPENSEARCH_URL || 'https://csca5028-infrastructure.herokuapp.com' }}"
+        REDIS_URL="${{ secrets.REDIS_URL || 'redis://csca5028-infrastructure.herokuapp.com:6379' }}"
+        
+        heroku config:set OPENSEARCH_URL="$OPENSEARCH_URL" -a csca5028-analysis-service
+        heroku config:set REDIS_URL="$REDIS_URL" -a csca5028-analysis-service
+        heroku config:set BFF_URL="https://csca5028-bff.herokuapp.com" -a csca5028-analysis-service
+
+  deploy-collection-service:
+    name: Deploy Collection Service to Heroku
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Deploy Collection Service to Heroku
+      uses: akhileshns/heroku-deploy@v3.13.15
+      with:
+        heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+        heroku_app_name: "csca5028-collection-service"
+        heroku_email: ${{ secrets.HEROKU_EMAIL }}
+        appdir: "collection-service"
+        procfile: "web: npm start"
+        buildpack: "heroku/nodejs"
+        
+    - name: Configure Collection Service Environment
+      run: |
+        # Install Heroku CLI
+        curl https://cli-assets.heroku.com/install.sh | sh
+        
+        # Login to Heroku
+        echo "${{ secrets.HEROKU_API_KEY }}" | heroku auth:token
+        
+        # Set environment variables
+        heroku config:set NODE_ENV=production -a csca5028-collection-service
+        
+        # Use free Docker infrastructure or external services
+        OPENSEARCH_URL="${{ secrets.OPENSEARCH_URL || 'https://csca5028-infrastructure.herokuapp.com' }}"
+        REDIS_URL="${{ secrets.REDIS_URL || 'redis://csca5028-infrastructure.herokuapp.com:6379' }}"
+        
+        heroku config:set OPENSEARCH_URL="$OPENSEARCH_URL" -a csca5028-collection-service
+        heroku config:set REDIS_URL="$REDIS_URL" -a csca5028-collection-service
+        heroku config:set BFF_URL="https://csca5028-bff.herokuapp.com" -a csca5028-collection-service

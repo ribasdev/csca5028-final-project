@@ -1,0 +1,41 @@
+# Node.js
+node_modules/
+
+# Build output
+dist/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+
+# Misc
+*.swp
+*.swo
+
+# Docker
+*.pid
+
+# Coverage
+coverage/
+
+# Others
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore local .env files
+.env.local
+.env.*.local
