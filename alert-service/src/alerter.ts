@@ -9,6 +9,8 @@ export class AlertProcessor {
       await this.sendCriticalAlert(alert);
     } else if (alert.severity === 'high') {
       await this.sendHighPriorityAlert(alert);
+    } else if (alert.severity === 'medium') {
+      await this.sendMediumPriorityAlert(alert);
     }
 
     await this.updateMetrics(alert);
@@ -17,59 +19,88 @@ export class AlertProcessor {
   private logAlert(alert: Alert): void {
     const timestamp = new Date().toISOString();
     
-    if (alert.severity === 'critical' && alert.type === 'expired') {
-      console.log(`CRITICAL: Certificate has expired - ${alert.university} (${alert.domain})`);
-    } else if (alert.severity === 'critical') {
-      console.log(`CRITICAL ALERT: Certificate expires in 1 day - ${alert.university} (${alert.domain})`);
+    if (alert.severity === 'critical') {
+      if (alert.type === 'expiring') {
+        console.log(`CRITICAL ALERT: Certificate expires in ${alert.message.match(/\d+/)?.[0] || 'unknown'} day`);
+      } else {
+        console.log(`CRITICAL: ${alert.message}`);
+      }
     } else if (alert.severity === 'high') {
-      console.log(`HIGH PRIORITY: Certificate expires in 7 days - ${alert.university} (${alert.domain})`);
+      if (alert.type === 'expiring') {
+        console.log(`HIGH PRIORITY: Certificate expires in ${alert.message.match(/\d+/)?.[0] || 'unknown'} days`);
+      } else {
+        console.log(`HIGH PRIORITY: ${alert.message}`);
+      }
     } else {
       console.log(`Alert for ${alert.university}: ${alert.message}`);
     }
     
-    console.log(`   Timestamp: ${timestamp}`);
-    console.log(`   University: ${alert.university}`);
-    console.log(`   Domain: ${alert.domain}`);
-    console.log(`   Severity: ${alert.severity.toUpperCase()}`);
+    console.log(`Alert details: ${alert.university} - ${alert.domain} - ${alert.type} - ${timestamp}`);
   }
 
   private async sendCriticalAlert(alert: Alert): Promise<void> {
-
     await this.sendEmailNotification(alert, 'critical');
-
     await this.sendWebhookNotification(alert);
   }
 
   private async sendHighPriorityAlert(alert: Alert): Promise<void> {
-
     await this.sendEmailNotification(alert, 'high');
+  }
+
+  private async sendMediumPriorityAlert(alert: Alert): Promise<void> {
   }
 
   private async sendEmailNotification(alert: Alert, priority: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    const subject = `[${priority.toUpperCase()}] SSL Certificate Alert - ${alert.domain}`;
-    const body = `Alert for ${alert.university}: ${alert.message}`;
+    const emailContent = {
+      to: this.getNotificationRecipients(alert.university),
+      subject: `[${priority.toUpperCase()}] SSL Certificate Alert - ${alert.domain}`,
+      body: `
+        University: ${alert.university}
+        Domain: ${alert.domain}
+        Issue: ${alert.message}
+        Severity: ${alert.severity}
+        Time: ${alert.timestamp}
+        
+        Action Required: Please review and address this certificate issue.
+      `
+    };
     
-    console.log(`Sending email notification:`);
-    console.log(`Subject: ${subject}`);
-    console.log(`Body: ${body}`);
-    console.log(`To: admin@${alert.domain}`);
+    console.log(`Subject: [${priority.toUpperCase()}] SSL Certificate Alert - ${alert.domain}`);
+    console.log(`Sending email to: ${emailContent.to}`);
+    console.log(`Body: Alert for ${alert.university}: ${alert.message}`);
+    console.log(`University: ${alert.university}`);
+    console.log(`Domain: ${alert.domain}`);
+    console.log(`Severity: ${alert.severity.toUpperCase()}`);
+  }
+
+  private getNotificationRecipients(university: string): string {
+    return `it-security@${university.toLowerCase().replace(/\s+/g, '')}.edu`;
   }
 
   private async sendWebhookNotification(alert: Alert): Promise<void> {
+    // Simulate webhook call delay
     await new Promise(resolve => setTimeout(resolve, 200));
     
-    const webhookUrl = 'https://university-alerts.example.com/webhook';
-    const payload = {
-      alert: alert,
-      timestamp: new Date().toISOString(),
-      environment: 'production'
+    const webhookPayload = {
+      alertId: alert.id,
+      type: alert.type,
+      severity: alert.severity,
+      university: alert.university,
+      domain: alert.domain,
+      message: alert.message,
+      timestamp: alert.timestamp,
+      actions: {
+        view_certificate: `https://ssl-monitor.example.com/certificates/${alert.domain}`,
+        acknowledge: `https://ssl-monitor.example.com/alerts/${alert.id}/acknowledge`
+      }
     };
     
-    console.log(`Sending webhook notification:`);
+    const webhookUrl = 'https://university-alerts.example.com/webhook';
+    console.log(`Sending webhook notification`);
     console.log(`URL: ${webhookUrl}`);
-    console.log(`Payload: ${JSON.stringify(payload, null, 2)}`);
+    console.log(`Payload: ${JSON.stringify(webhookPayload, null, 2)}`);
   }
 
   private async updateMetrics(alert: Alert): Promise<void> {
@@ -80,9 +111,9 @@ export class AlertProcessor {
       timestamp: new Date().toISOString()
     };
     
-    console.log(`Metrics updated:`);
+    console.log(`Metrics updated: ${JSON.stringify(metrics)}`);
+    console.log(`Alert processing completed for ${alert.university}`);
     console.log(`Alert processed: ${alert.severity} - ${alert.type}`);
     console.log(`University: ${alert.university}`);
-    console.log(`Timestamp: ${metrics.timestamp}`);
   }
 }

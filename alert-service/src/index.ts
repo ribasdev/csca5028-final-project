@@ -11,7 +11,6 @@ const alertProcessor = new AlertProcessor();
 
 class AlertService {
   async start() {
-    console.log('Alert Service started');
     this.processAlertQueue();
   }
 
@@ -24,7 +23,6 @@ class AlertService {
           await this.processAlert(alert);
         }
       } catch (error) {
-        console.error('Error processing alert queue:', error);
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
@@ -32,22 +30,43 @@ class AlertService {
 
   async processAlert(alert: any) {
     try {
-      console.log(`Processing alert: ${alert.type} for ${alert.domain}`);
       
       await opensearch.index({
         index: 'alerts',
         id: alert.id,
-        body: alert
+        body: {
+          ...alert,
+          processedTimestamp: new Date().toISOString()
+        }
       });
 
       await alertProcessor.processAlert(alert);
       
-      console.log(`Alert processed: ${alert.id}`);
+      await this.updateAlertMetrics(alert);
+      
     } catch (error) {
-      console.error(`Error processing alert ${alert.id}:`, error);
+    }
+  }
+
+  async updateAlertMetrics(alert: any) {
+    try {
+      const metrics = {
+        alertType: alert.type,
+        severity: alert.severity,
+        university: alert.university,
+        domain: alert.domain,
+        timestamp: new Date().toISOString()
+      };
+
+      await opensearch.index({
+        index: 'alert-metrics',
+        body: metrics
+      });
+
+    } catch (error) {
     }
   }
 }
 
 const service = new AlertService();
-service.start().catch(console.error);
+service.start();

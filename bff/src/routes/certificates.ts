@@ -21,7 +21,6 @@ router.get('/', async (req, res) => {
     const certificates = response.body.hits.hits.map((hit: any) => hit._source);
     res.json(certificates);
   } catch (error) {
-    console.error('Error fetching certificates:', error);
     res.status(500).json({ error: 'Failed to fetch certificates' });
   }
 });
@@ -44,7 +43,6 @@ router.get('/alerts/recent', async (req, res) => {
     const alerts = response.body.hits.hits.map((hit: any) => hit._source);
     res.json(alerts);
   } catch (error) {
-    console.error('Error fetching alerts:', error);
     res.status(500).json({ error: 'Failed to fetch alerts' });
   }
 });
@@ -150,7 +148,6 @@ router.get('/stats/dashboard', async (req, res) => {
 
     res.json(stats);
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
     res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
   }
 });
@@ -179,7 +176,6 @@ router.get('/:domain', async (req, res) => {
     const certificate = response.body.hits.hits[0]._source;
     res.json(certificate);
   } catch (error) {
-    console.error('Error fetching certificate:', error);
     res.status(500).json({ error: 'Failed to fetch certificate' });
   }
 });
@@ -198,7 +194,6 @@ router.post('/scan/:domain', async (req, res) => {
 
     res.json({ message: `Scan queued for ${domain}` });
   } catch (error) {
-    console.error('Error queuing scan:', error);
     res.status(500).json({ error: 'Failed to queue scan' });
   }
 });

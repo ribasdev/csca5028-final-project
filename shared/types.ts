@@ -18,7 +18,7 @@ export interface Certificate {
   serialNumber: string;
   signatureAlgorithm: string;
   keySize: number;
-  securityGrade: 'A' | 'B' | 'C' | 'D' | 'F';
+  securityGrade: 'A' | 'B' | 'C' | 'D' | 'F' | 'Pending';
   status: 'valid' | 'expiring' | 'expired' | 'invalid';
   scanTimestamp: string;
 }

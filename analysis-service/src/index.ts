@@ -23,7 +23,6 @@ class AnalysisService {
           await this.processAnalysisJob(analysisJob);
         }
       } catch (error) {
-        console.error('Error processing analysis queue:', error);
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
     }
@@ -31,7 +30,6 @@ class AnalysisService {
 
   async processAnalysisJob(job: any) {
     try {
-
       const analysis = analyzer.analyzeCertificate(job.certificate);
 
       await opensearch.update({
@@ -42,6 +40,7 @@ class AnalysisService {
             securityGrade: analysis.securityGrade,
             vulnerabilities: analysis.vulnerabilities,
             recommendations: analysis.recommendations,
+            riskLevel: analysis.riskLevel,
             analysisTimestamp: new Date().toISOString()
           }
         }

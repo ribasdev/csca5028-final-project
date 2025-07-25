@@ -110,13 +110,13 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const filteredCertificates = certificates.filter(cert => {
+  const filteredCertificates = (certificates || []).filter(cert => {
     if (filter === 'all') return true;
     return cert.status === filter;
   });
 
-  const mergedUniversityData = universities.map(university => {
-    const cert = certificates.find(c => c.domain === university.domain);
+  const mergedUniversityData = (universities || []).map(university => {
+    const cert = (certificates || []).find(c => c.domain === university.domain);
     return {
       id: university.id,
       universityName: university.universityName,

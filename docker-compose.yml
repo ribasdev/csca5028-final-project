@@ -1,5 +1,4 @@
 services:
-  # Frontend
   frontend:
     build:
       context: .
@@ -11,7 +10,6 @@ services:
     depends_on:
       - bff
 
-  # BFF/API Service
   bff:
     build:
       context: .
@@ -25,7 +23,6 @@ services:
       - redis
       - opensearch
 
-  # Collection Service
   collection-service:
     build:
       context: .
@@ -39,7 +36,6 @@ services:
       - redis
       - opensearch
 
-  # Analysis Service
   analysis-service:
     build:
       context: .
@@ -53,7 +49,6 @@ services:
       - redis
       - opensearch
 
-  # Alert Service
   alert-service:
     build:
       context: .
@@ -67,7 +62,6 @@ services:
       - redis
       - opensearch
 
-  # Redis for message queues
   redis:
     image: redis:7-alpine
     ports:
@@ -75,7 +69,6 @@ services:
     volumes:
       - redis_data:/data
 
-  # OpenSearch for database
   opensearch:
     image: opensearchproject/opensearch:2.11.1
     environment:
@@ -88,7 +81,6 @@ services:
     volumes:
       - opensearch_data:/usr/share/opensearch/data
 
-  # OpenSearch Dashboard
   opensearch-dashboard:
     image: opensearchproject/opensearch-dashboards:2.11.1
     environment:

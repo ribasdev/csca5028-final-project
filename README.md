@@ -4,7 +4,7 @@ A comprehensive microservices-based system for monitoring SSL certificates acros
 
 
 
-## 📊 Key Features
+## Key Features
 
 - **Real-time Certificate Monitoring**: Automated scanning of university domain SSL certificates
 - **Dashboard Analytics**: Comprehensive statistics showing certificate status distribution
@@ -15,6 +15,20 @@ A comprehensive microservices-based system for monitoring SSL certificates acros
 - **Alert Management**: Automated alerts for certificate issues and expiration
 - **Responsive Design**: Mobile-friendly React interface
 - **Microservices Architecture**: Scalable, containerized service architecture
+
+## Application Screenshots
+
+### Dashboard Overview
+![Dashboard Overview](print1.png)
+*Main dashboard showing university SSL certificate statistics and monitoring overview*
+
+### University Registration
+![University Registration](print2.png)
+*University registration interface for adding new institutions to monitor*
+
+### Certificate Details & Management
+![Certificate Management](print3.png)
+*Detailed certificate information and management interface*
 
 ## Architecture
 
@@ -31,7 +45,7 @@ The system consists of the following services:
 - **OpenSearch Dashboard**: Web interface for data visualization and management
 - **Redis**: Message queue for inter-service communication
 
-## 🔄 CI/CD Pipeline
+## CI/CD Pipeline
 
 This project uses GitHub Actions for continuous integration and deployment:
 
@@ -195,18 +209,18 @@ cd alert-service && npm test
 ### Dashboard Statistics Response
 ```typescript
 {
-  totalUniversities: number,        // Count of registered universities
-  validCertificates: number,        // Valid certificates for registered domains
-  expiringCertificates: number,     // Certificates expiring within 30 days
-  expiredCertificates: number,      // Expired certificates
-  securityDistribution: {           // Distribution by security grade
+  totalUniversities: number,        
+  validCertificates: number,        
+  expiringCertificates: number,     
+  expiredCertificates: number,     
+  securityDistribution: {           
     'A': number,
     'B': number,
     'C': number,
     'D': number,
     'F': number
   },
-  recentAlerts: Alert[]            // Recent unresolved alerts
+  recentAlerts: Alert[]            
 }
 ```
 
@@ -279,7 +293,7 @@ docker-compose logs -f <service-name>
 }
 ```
 
-## 🧪 Testing
+## Testing
 
 This project includes comprehensive unit and integration tests for all components.
 
@@ -486,7 +500,3 @@ cd bff && npm run test:watch
 2. **Testing**: Automated tests run in CI/CD pipeline
 3. **Code Quality**: ESLint and TypeScript compilation checks
 4. **Deployment**: Automatic deployment on main branch merge
-
-## License
-
-This project is for educational purposes as part of CSCA 5028 coursework.

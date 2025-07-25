@@ -211,8 +211,29 @@ export class DatabaseManager {
     try {
       return await this.redis.llen(queueName);
     } catch (error) {
-      console.error(`Error getting queue length for ${queueName}:`, error);
       return 0;
+    }
+  }
+
+  async getQueueDepths(): Promise<{ [key: string]: number }> {
+    try {
+      const [scanQueue, analysisQueue, alertQueue] = await Promise.all([
+        this.redis.llen('scan_queue'),
+        this.redis.llen('analysis_queue'),
+        this.redis.llen('alert_queue')
+      ]);
+
+      return {
+        scan_queue: scanQueue,
+        analysis_queue: analysisQueue,
+        alert_queue: alertQueue
+      };
+    } catch (error) {
+      return {
+        scan_queue: 0,
+        analysis_queue: 0,
+        alert_queue: 0
+      };
     }
   }
 

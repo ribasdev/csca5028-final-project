@@ -10,7 +10,10 @@ const opensearch = new Client({
 const scanner = new CertificateScanner();
 
 class CollectionService {
-  async getUniversitiesFromDatabase() {
+  private universities: any[] = [];
+  private lastCacheUpdate: number = 0;
+
+  async loadUniversities() {
     try {
       const response = await opensearch.search({
         index: 'universities',
@@ -20,24 +23,43 @@ class CollectionService {
         }
       });
 
-      return response.body.hits.hits.map((hit: any) => ({
+      this.universities = response.body.hits.hits.map((hit: any) => ({
         id: hit._id,
         name: hit._source.universityName,
         domain: hit._source.domain,
         state: hit._source.state,
         url: `https://${hit._source.domain}`
       }));
+      
+      this.lastCacheUpdate = Date.now();
+      
+      return this.universities;
     } catch (error) {
-      console.error('Error fetching universities from database:', error);
-      return [];
+      return this.universities;
     }
   }
 
-  async start() {
+  async getUniversitiesFromDatabase() {
+    // Use cached data if recent (within 5 minutes)
+    const now = Date.now();
+    if (now - this.lastCacheUpdate < 5 * 60 * 1000 && this.universities.length > 0) {
+      return this.universities;
+    }
+    
+    return await this.loadUniversities();
+  }
 
+  async start() {
+    await this.loadUniversities();
+    
+    setInterval(async () => {
+      await this.loadUniversities();
+    }, 60 * 60 * 1000); // Every hour
+    
     this.processScanQueue();
 
     this.schedulePeriodicScans();
+    
   }
 
   async processScanQueue() {
@@ -57,52 +79,86 @@ class CollectionService {
 
   async processScanJob(job: any) {
     try {
-
       const certificate = await scanner.scanDomain(job.domain);
 
       if (certificate) {
+        const certificateId = `${job.domain}_${Date.now()}`;
         await opensearch.index({
           index: 'certificates',
-          id: `${job.domain}_${Date.now()}`,
+          id: certificateId,
           body: certificate
         });
 
+        await this.updateLastScanDate(job.domain);
+
         await redis.lpush('analysis_queue', JSON.stringify({
-          certificateId: `${job.domain}_${Date.now()}`,
+          certificateId,
           certificate,
           timestamp: new Date().toISOString()
         }));
 
       }
     } catch (error) {
-      console.error(`Error scanning ${job.domain}:`, error);
+    }
+  }
+
+  async updateLastScanDate(domain: string) {
+    try {
+      const university = this.universities.find(u => u.domain === domain);
+      if (university) {
+        await opensearch.update({
+          index: 'universities',
+          id: university.id,
+          body: {
+            doc: {
+              lastScanDate: new Date().toISOString()
+            }
+          }
+        });
+      }
+    } catch (error) {
     }
   }
 
   async schedulePeriodicScans() {
+    
     setInterval(async () => {
-      const universities = await this.getUniversitiesFromDatabase();
-      for (const university of universities) {
-        await redis.lpush('scan_queue', JSON.stringify({
-          universityId: university.id,
-          domain: university.domain,
-          priority: 'medium',
-          timestamp: new Date().toISOString()
-        }));
-      }
+      await this.queueUniversityScans();
     }, 24 * 60 * 60 * 1000);
 
+    await this.queueUniversityScans();
+  }
+
+  async queueUniversityScans() {
+    
     const universities = await this.getUniversitiesFromDatabase();
-    for (const university of universities) {
-      await redis.lpush('scan_queue', JSON.stringify({
-        universityId: university.id,
-        domain: university.domain,
-        priority: 'high',
-        timestamp: new Date().toISOString()
-      }));
+    
+    const highPriorityUniversities = universities.filter((u: any) => u.priority === 'high');
+    for (const university of highPriorityUniversities) {
+      await this.queueScanJob(university, 'high');
     }
+    
+    const mediumPriorityUniversities = universities.filter((u: any) => u.priority === 'medium' || !u.priority);
+    for (const university of mediumPriorityUniversities) {
+      await this.queueScanJob(university, 'medium');
+    }
+    
+    const lowPriorityUniversities = universities.filter((u: any) => u.priority === 'low');
+    for (const university of lowPriorityUniversities) {
+      await this.queueScanJob(university, 'low');
+    }
+    
+  }
+
+  async queueScanJob(university: any, priority: string = 'medium') {
+    await redis.lpush('scan_queue', JSON.stringify({
+      universityId: university.id,
+      domain: university.domain,
+      priority,
+      timestamp: new Date().toISOString()
+    }));
   }
 }
 
 const service = new CollectionService();
-service.start().catch(console.error);
+service.start();

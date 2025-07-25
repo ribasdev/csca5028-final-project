@@ -24,29 +24,40 @@ app.use('/api/certificates', certificateRoutes);
 app.use('/api/universities', universityRoutes);
 
 app.get('/health', async (req: Request, res: Response) => {
-  const opensearchHealthy = await dbManager.checkOpenSearchHealth();
-  const redisHealthy = await dbManager.checkRedisHealth();
+  try {
+    const opensearchHealthy = await dbManager.checkOpenSearchHealth();
+    const redisHealthy = await dbManager.checkRedisHealth();
+    
+    const queueDepths = await dbManager.getQueueDepths();
+    
+    const status = opensearchHealthy && redisHealthy ? 'healthy' : 'unhealthy';
 
-  const status = opensearchHealthy && redisHealthy ? 'healthy' : 'unhealthy';
-
-  res.status(status === 'healthy' ? 200 : 503).json({
-    status,
-    timestamp: new Date().toISOString(),
-    services: {
-      opensearch: opensearchHealthy ? 'healthy' : 'unhealthy',
-      redis: redisHealthy ? 'healthy' : 'unhealthy'
-    }
-  });
+    res.status(status === 'healthy' ? 200 : 503).json({
+      status,
+      timestamp: new Date().toISOString(),
+      services: {
+        opensearch: opensearchHealthy ? 'healthy' : 'unhealthy',
+        redis: redisHealthy ? 'healthy' : 'unhealthy'
+      },
+      queues: queueDepths
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: 'Health check failed'
+    });
+  }
 });
 
 async function startServer() {
   try {
+    
     await dbManager.initializeIndices();
 
     app.listen(port, () => {
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
     process.exit(1);
   }
 }

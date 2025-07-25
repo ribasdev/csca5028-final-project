@@ -107,6 +107,40 @@ describe('DatabaseManager Unit Tests', () => {
       expect(typeof length).toBe('number');
       expect(length).toBeGreaterThanOrEqual(0);
     });
+
+    it('should get queue depths for all queues', async () => {
+      // Mock different queue lengths
+      mockRedisClient.llen = jest.fn()
+        .mockResolvedValueOnce(5)  // scan_queue
+        .mockResolvedValueOnce(3)  // analysis_queue
+        .mockResolvedValueOnce(1); // alert_queue
+
+      const depths = await dbManager.getQueueDepths();
+      
+      expect(depths).toEqual({
+        scan_queue: 5,
+        analysis_queue: 3,
+        alert_queue: 1
+      });
+      
+      expect(mockRedisClient.llen).toHaveBeenCalledTimes(3);
+      expect(mockRedisClient.llen).toHaveBeenCalledWith('scan_queue');
+      expect(mockRedisClient.llen).toHaveBeenCalledWith('analysis_queue');
+      expect(mockRedisClient.llen).toHaveBeenCalledWith('alert_queue');
+    });
+
+    it('should handle queue depth errors gracefully', async () => {
+      // Mock Redis llen to throw an error
+      mockRedisClient.llen = jest.fn().mockRejectedValue(new Error('Redis Error'));
+      
+      const depths = await dbManager.getQueueDepths();
+      
+      expect(depths).toEqual({
+        scan_queue: 0,
+        analysis_queue: 0,
+        alert_queue: 0
+      });
+    });
   });
 
   describe('Error Handling', () => {
